@@ -40,7 +40,8 @@ def read_excel_safe(file_bytes, filename):
 
 def find_header_row(df, keywords):
     """Find the row index that contains the header with given keywords"""
-    for i, row in df.iterrows():
+    for i in range(min(10, len(df))):
+        row = df.iloc[i]
         vals = [str(v).lower().strip() for v in row.values]
         matches = sum(1 for k in keywords if any(k.lower() in v for v in vals))
         if matches >= 2:
@@ -89,13 +90,29 @@ def analyze_files(files_data):
         for sname, df in master['sheets'].items():
             if sname.lower() != 'plan':
                 continue
-            header_idx = find_header_row(df, ['customer', 'style', 'ship'])
+            # Try multiple header positions
+            header_idx = None
+            for i in range(min(8, len(df))):
+                row = df.iloc[i]
+                vals = [str(v).lower().strip() for v in row.values]
+                if sum(1 for k in ['customer', 'style', 'ship'] if any(k in v for v in vals)) >= 2:
+                    header_idx = i
+                    break
+            
             if header_idx is None:
+                print(f"Master Plan: header not found in sheet {sname}")
                 continue
+
+            print(f"Master Plan: header found at row {header_idx}")
             data = df.iloc[header_idx+1:].reset_index(drop=True)
-            data.columns = df.iloc[header_idx].values
-            data = data[data.apply(lambda r: str(r.get('Customer', '')).strip() not in ['', 'nan', 'Customer'], axis=1)]
+            data.columns = [str(c).strip() for c in df.iloc[header_idx].values]
+            
+            # Filter valid rows
+            data = data[data.apply(lambda r: str(r.get('Customer', '')).strip() not in ['', 'nan', 'Customer', 'C1'], axis=1)]
             data = data.dropna(subset=['Customer']).reset_index(drop=True)
+            
+            print(f"Master Plan: {len(data)} rows after filter")
+            print(f"Master Plan columns: {list(data.columns[:10])}")
 
             for _, row in data.iterrows():
                 try:
