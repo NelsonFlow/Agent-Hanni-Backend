@@ -233,31 +233,54 @@ def analyze_files(files_data):
     delivery = dfs.get('Delivery & QA')
     if delivery:
         for sname, df in delivery['sheets'].items():
-            if 'delivery' in sname.lower() or 'uninspect' in sname.lower():
-                header_idx = find_header_row(df, ['customer', 'supplier', 'fast'])
+            try:
+                # Try to find header row
+                header_idx = None
+                for i in range(min(10, len(df))):
+                    row = df.iloc[i]
+                    vals = [str(v).lower().strip() for v in row.values]
+                    if any('customer' in v for v in vals) and any('supplier' in v or 'fast' in v or 'color' in v for v in vals):
+                        header_idx = i
+                        break
+
                 if header_idx is None:
                     continue
-                data = df.iloc[header_idx+2:].reset_index(drop=True)
-                data.columns = df.iloc[header_idx+1].values
-                data = data[data['Customer'].notna() & (data['Customer'].astype(str) != 'Unplan')]
 
-                for _, row in data.iterrows():
+                # Try header at header_idx, then header_idx+1
+                for offset in [1, 0]:
                     try:
-                        cust = str(row.get('Customer', '')).strip().upper()
-                        fast_code = str(row.get('fast code', '')).strip().upper()
-                        received = str(row.get('RECEIVED/INSPECTED', '')).strip()
-                        ready_date = xl_to_date(row.get('READY TO SHIP DATE'))
-                        color = str(row.get('Color', '')).strip().upper()
+                        data = df.iloc[header_idx+offset+1:].reset_index(drop=True)
+                        cols = [str(c).strip() for c in df.iloc[header_idx+offset].values]
+                        data.columns = cols
 
-                        ck = f"{cust}|{fast_code}|{color}"
-                        delivery_status[ck] = {
-                            'received': received not in ['', 'nan'],
-                            'ready_date': ready_date,
-                            'fast_code': fast_code
-                        }
+                        if 'Customer' not in cols:
+                            continue
+
+                        data = data[data['Customer'].notna()]
+                        data = data[data['Customer'].astype(str).str.strip().isin(['', 'nan', 'Unplan']) == False]
+                        data = data.reset_index(drop=True)
+
+                        for _, row in data.iterrows():
+                            try:
+                                cust = str(row.get('Customer', '')).strip().upper()
+                                fast_code = str(row.get('fast code', row.get('Fast Code', ''))).strip().upper()
+                                received = str(row.get('RECEIVED/INSPECTED', '')).strip()
+                                color = str(row.get('Color', '')).strip().upper()
+                                ck = f"{cust}|{fast_code}|{color}"
+                                delivery_status[ck] = {
+                                    'received': received not in ['', 'nan'],
+                                    'fast_code': fast_code
+                                }
+                            except:
+                                continue
+                        break
                     except:
                         continue
-                break
+            except Exception as e:
+                print(f"Delivery Plan sheet {sname} error: {e}")
+                continue
+
+    print(f"Delivery status: {len(delivery_status)} entries")
 
     # =============================================
     # 5. CROSS-CHECK — analyse par commande
