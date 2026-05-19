@@ -281,34 +281,38 @@ def analyze_files(files_data):
 
         merch_data = merch_status.get(ck, {})
 
-        # --- CHECK 1: FABRIC RECEIVED AT WH ---
-        # Check via fabric codes from Master Plan against Fabric Report
+    # --- CHECK 1: FABRIC RECEIVED AT WH ---
         fabric_received = False
         fabric_in_transit = False
+        missing_codes = []
 
         if fabric_codes:
             for code in fabric_codes:
                 if code in fabric_received_codes:
                     fabric_received = True
-                    break
-                if code in fabric_pending_codes:
+                elif code in fabric_pending_codes:
                     fabric_in_transit = True
+                    missing_codes.append(code)
+                else:
+                    missing_codes.append(code)
 
         # Also check via merch stock_out date
         if merch_data.get('stock_out'):
             fabric_received = True
+            missing_codes = []
 
         if not fabric_received:
-            if fabric_in_transit:
-                root_causes.append('fabric_in_transit')
-                issues.append(f'Vải đang vận chuyển, chưa về kho ({", ".join(fabric_codes[:2])})')
-            elif fabric_codes:
-                root_causes.append('fabric_not_received')
-                issues.append(f'Vải chưa nhận tại kho — mã: {", ".join(fabric_codes[:2])}')
-            else:
+            if missing_codes:
+                codes_str = ', '.join(missing_codes[:3])
+                if fabric_in_transit:
+                    root_causes.append('fabric_in_transit')
+                    issues.append(f'Vải đang vận chuyển, chưa về kho — mã: {codes_str}')
+                else:
+                    root_causes.append('fabric_not_received')
+                    issues.append(f'Vải chưa nhận tại kho — mã: {codes_str}')
+            elif not fabric_codes:
                 root_causes.append('fabric_code_missing')
                 issues.append('Không tìm thấy mã vải trong Master Plan')
-
         # --- CHECK 2: MER RELEASED ---
         mer_released = merch_data.get('mer_released', False)
         if fabric_received and not mer_released and ck in merch_status:
@@ -371,6 +375,7 @@ def analyze_files(files_data):
             'action': build_action(root_causes, customer, style, days),
             'rootCauses': root_causes,
             'fabricCodes': fabric_codes
+            'fabricCodes': missing_codes
         })
 
     level_order = {'CRITICAL': 0, 'RISK': 1, 'WATCH': 2, 'OK': 3}
