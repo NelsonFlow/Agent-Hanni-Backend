@@ -374,7 +374,6 @@ def analyze_files(files_data):
             'issue': prefix + ' | '.join(issues),
             'action': build_action(root_causes, customer, style, days),
             'rootCauses': root_causes,
-            'fabricCodes': fabric_codes
             'fabricCodes': missing_codes
         })
 
