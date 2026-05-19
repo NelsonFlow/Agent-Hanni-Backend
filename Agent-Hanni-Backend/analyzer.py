@@ -53,7 +53,7 @@ def analyze_files(files_data):
             continue
         sheets = {}
         engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
-        for sheet in xl.sheet_names[:10]:
+        for sheet in xl.sheet_names:
             try:
                 if engine:
                     df = pd.read_excel(xl, sheet_name=sheet, header=None, engine=engine)
