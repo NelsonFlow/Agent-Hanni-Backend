@@ -378,7 +378,7 @@ def analyze_files(files_data):
         })
 
     level_order = {'CRITICAL': 0, 'RISK': 1, 'WATCH': 2, 'OK': 3}
-anomalies.sort(key=lambda x: (level_order.get(x['level'], 9), x.get('daysToShip', 999)))
+    anomalies.sort(key=lambda x: (level_order.get(x['level'], 9), x.get('daysToShip', 999)))
 
     # Prioritize Hanni's known at-risk customers
     PRIORITY_CUSTOMERS = {'ALD', 'GOLF WANG', 'RODD & GUNN', 'CORTEIZ', 'STUSSY', 'RAPHA'}
