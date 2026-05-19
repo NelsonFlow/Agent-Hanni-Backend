@@ -64,7 +64,7 @@ async def analyze(request: AnalyzeRequest):
     return result
 
 async def enrich_with_ai(result):
-    client = openai.AsyncOpenAI(api_key=OPENAI_KEY)
+    client = openai.OpenAI(api_key=OPENAI_KEY)
     critical = [a for a in result['alerts'] if a['level'] == 'CRITICAL']
     risk = [a for a in result['alerts'] if a['level'] == 'RISK']
     summary_lines = []
@@ -78,7 +78,7 @@ Các vấn đề phát hiện hôm nay:
 {chr(10).join(summary_lines)}
 Tóm tắt trong 2-3 câu ngắn gọn bằng tiếng Việt, nêu rõ mức độ nghiêm trọng và bộ phận cần hành động ngay."""
 
-    response = await client.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=300,
