@@ -42,7 +42,7 @@ async def analyze(request: AnalyzeRequest):
     for f in request.files:
         try:
             content = base64.b64decode(f.content_b64)
-            print(f"Received file: '{f.filename}' size={len(content)} bytes")
+            print(f"Received: '{f.filename}' size={len(content)} bytes")
             files_data.append({'filename': f.filename, 'content': content})
         except Exception as e:
             print(f"Error decoding {f.filename}: {e}")
@@ -59,7 +59,7 @@ async def analyze(request: AnalyzeRequest):
         try:
             result = await enrich_with_ai(result)
         except Exception as e:
-            result['globalSummary'] += f" (AI indisponible)"
+            result['globalSummary'] += " (AI indisponible)"
 
     return result
 
