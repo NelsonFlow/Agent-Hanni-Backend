@@ -59,6 +59,7 @@ async def analyze(request: AnalyzeRequest):
         try:
             result = enrich_with_ai(result)
         except Exception as e:
+            print(f"OpenAI error: {e}")
             result['globalSummary'] += " (AI indisponible)"
 
     return result
