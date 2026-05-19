@@ -57,13 +57,13 @@ async def analyze(request: AnalyzeRequest):
 
     if OPENAI_KEY and result['alerts']:
         try:
-            result = await enrich_with_ai(result)
+            result = enrich_with_ai(result)
         except Exception as e:
             result['globalSummary'] += " (AI indisponible)"
 
     return result
 
-async def enrich_with_ai(result):
+def enrich_with_ai(result):
     client = openai.OpenAI(api_key=OPENAI_KEY)
     critical = [a for a in result['alerts'] if a['level'] == 'CRITICAL']
     risk = [a for a in result['alerts'] if a['level'] == 'RISK']
