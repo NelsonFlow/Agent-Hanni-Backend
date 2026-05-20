@@ -20,12 +20,12 @@ def fmt_date(d):
 def detect_department(filename):
     f = filename.lower()
     if 'erp' in f: return 'ERP'
-    if 'fabric' in f and 'daily' in f: return 'Fabric'
+    if 'fabric' in f: return 'Fabric'
     if 'merchandise' in f or 'merch' in f: return 'Merchandise'
     if 'delivery' in f or 'inspection' in f: return 'Delivery & QA'
     if 'master' in f: return 'Master Plan'
     if 'shipment' in f or 'tracking' in f: return 'Shipment'
-    if 'daily_report' in f or 'daily report' in f: return 'Daily Report'
+    if 'daily' in f: return 'Daily Report'
     return 'Autre'
 
 def read_excel_safe(file_bytes, filename):
