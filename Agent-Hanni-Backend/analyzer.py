@@ -94,6 +94,10 @@ def analyze_files(files_data):
             xl = read_excel_safe(f['content'], fname)
             if xl:
                 engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
+                if dept == 'Shipment':
+                    dfs[dept] = {'filename': fname, 'sheets': {}}
+                    print(f"Skipped: {dept} ({fname})")
+                    continue
                 for sheet in xl.sheet_names[:10]:
                     try:
                         if engine:
