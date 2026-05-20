@@ -108,7 +108,10 @@ def analyze_files(files_data):
                     fabric_main = str(row.get('Main', '')).strip().upper()
                     fabric_contrast1 = str(row.get('Contrast 1', '')).strip().upper()
                     fabric_rib = str(row.get('Rib', '')).strip().upper()
-                    fabric_codes = [c for c in [fabric_main, fabric_contrast1, fabric_rib] if c and c != 'NAN' and c != 'OK']
+                    fabric_codes = [
+                      c for c in [fabric_main, fabric_contrast1, fabric_rib]
+                     if c and c != 'NAN' and c != 'OK' and not c.replace('.','').isdigit()
+                    ]
 
                     if not ship_date or not customer or customer == 'nan':
                         continue
