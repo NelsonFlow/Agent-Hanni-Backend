@@ -54,7 +54,17 @@ def analyze_files(files_data):
             continue
         sheets = {}
         engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
-        for sheet in xl.sheet_names[:15]:
+
+        # Pour Master Plan — charger uniquement le sheet Plan
+        if dept == 'Master Plan':
+            target_sheets = [s for s in xl.sheet_names if s.lower() == 'plan']
+        # Pour Merchandise — charger uniquement Fabric Tracking et Daily_Report
+        elif dept == 'Merchandise':
+            target_sheets = [s for s in xl.sheet_names if any(x in s.lower() for x in ['tracking', 'daily_report', 'daily report'])]
+        else:
+            target_sheets = xl.sheet_names[:10]
+
+        for sheet in target_sheets:
             try:
                 df = pd.read_excel(xl, sheet_name=sheet, header=None, engine=engine) if engine else pd.read_excel(xl, sheet_name=sheet, header=None)
                 sheets[sheet] = df
