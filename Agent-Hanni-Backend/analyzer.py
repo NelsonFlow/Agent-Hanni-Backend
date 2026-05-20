@@ -64,12 +64,46 @@ def analyze_files(files_data):
         else:
             target_sheets = xl.sheet_names[:10]
 
-        for sheet in target_sheets:
+        # Chargement optimisé par département
+        if dept == 'Master Plan':
             try:
-                df = pd.read_excel(xl, sheet_name=sheet, header=None, engine=engine) if engine else pd.read_excel(xl, sheet_name=sheet, header=None)
-                sheets[sheet] = df
-            except:
-                pass
+                engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
+                if engine:
+                    df = pd.read_excel(io.BytesIO(f['content']), sheet_name='Plan', header=None, engine=engine)
+                else:
+                    df = pd.read_excel(io.BytesIO(f['content']), sheet_name='Plan', header=None)
+                sheets = {'Plan': df}
+            except Exception as e:
+                print(f"Master Plan error: {e}")
+                sheets = {}
+        elif dept == 'Merchandise':
+            xl = read_excel_safe(f['content'], fname)
+            if xl:
+                engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
+                for sname in xl.sheet_names:
+                    if any(x in sname.lower() for x in ['tracking', 'daily_report', 'daily report']):
+                        try:
+                            if engine:
+                                df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
+                            else:
+                                df = pd.read_excel(xl, sheet_name=sname, header=None)
+                            sheets[sname] = df
+                        except:
+                            pass
+        else:
+            xl = read_excel_safe(f['content'], fname)
+            if xl:
+                engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
+                for sheet in xl.sheet_names[:10]:
+                    try:
+                        if engine:
+                            df = pd.read_excel(xl, sheet_name=sheet, header=None, engine=engine)
+                        else:
+                            df = pd.read_excel(xl, sheet_name=sheet, header=None)
+                        sheets[sheet] = df
+                    except:
+                        pass
+
         dfs[dept] = {'filename': fname, 'sheets': sheets}
         print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
