@@ -264,33 +264,24 @@ def analyze_files(files_data):
     if daily:
         for sname, df in daily['sheets'].items():
             if 'daily' in sname.lower():
-                for i in range(min(8, len(df))):
-                    vals = [str(v).lower() for v in df.iloc[i].values]
-                    print(f"WH row {i}: {vals[:6]}")
-                    if any('m\u00e3v' in v for v in vals):
-                        data = df.iloc[i+1:].reset_index(drop=True)
-                        data.columns = [str(c).strip() for c in df.iloc[i].values]
-                        for _, row in data.iterrows():
+                header_row = 3
+                data = df.iloc[header_row+1:].reset_index(drop=True)
+                for _, row in data.iterrows():
+                    try:
+                        code = str(row.iloc[4]).strip().upper()
+                        if not code or code == 'NAN':
+                            continue
+                        date_val = xl_to_date(row.iloc[3])
+                        qty = row.iloc[9]
+                        if code not in wh_data:
+                            wh_data[code] = {'date': date_val, 'qty': qty}
+                        else:
                             try:
-                                code = None
-                                for col in data.columns:
-                                    if 'm\u00e3v' in str(col).lower():
-                                        code = str(row.get(col, '')).strip().upper()
-                                        break
-                                if not code or code == 'NAN':
-                                    continue
-                                date_val = xl_to_date(row.get('Ngay'))
-                                qty = row.get('Total Gross \nQuantity\n(so luong nhap kho)', 0)
-                                if code not in wh_data:
-                                    wh_data[code] = {'date': date_val, 'qty': qty}
-                                else:
-                                    try:
-                                        wh_data[code]['qty'] = float(wh_data[code]['qty'] or 0) + float(qty or 0)
-                                    except:
-                                        pass
+                                wh_data[code]['qty'] = float(wh_data[code]['qty'] or 0) + float(qty or 0)
                             except:
-                                continue
-                        break
+                                pass
+                    except:
+                        continue
     print(f"WH received: {len(wh_data)} codes")
 
     # 6. MERCHANDISE
