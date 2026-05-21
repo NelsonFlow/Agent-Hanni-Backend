@@ -509,7 +509,7 @@ def analyze_files(files_data):
             'summary': f"{len(dept_alerts)} vấn đề, {critical_count} khẩn cấp"
         })
 
-    print(f"Done: {len(anomalies)} | CRITICAL: {stats.get('critical',0)} | RISK: {stats.get('risk',0)} | WATCH: {stats.get('watch',0)} | OK: {stats['ok']}")
+    print(f"VERSION2 — Done: {len(anomalies)} | CRITICAL: {stats.get('critical',0)} | RISK: {stats.get('risk',0)} | WATCH: {stats.get('watch',0)} | OK: {stats['ok']}")
 
     return {
         'summary': {
