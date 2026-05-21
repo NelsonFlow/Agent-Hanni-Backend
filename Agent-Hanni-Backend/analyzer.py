@@ -35,7 +35,6 @@ def detect_department(filename):
     return 'Autre'
 
 def read_sheet_direct(file_bytes, filename, sheet_name):
-    """Charge un sheet directement par nom sans passer par ExcelFile"""
     ext = filename.lower().split('.')[-1]
     try:
         if ext == 'xlsb':
@@ -71,7 +70,6 @@ def analyze_files(files_data):
         dept = detect_department(fname)
         sheets = {}
 
-        # Shipment — skippé
         if dept == 'Shipment':
             dfs[dept] = {'filename': fname, 'sheets': {}}
             print(f"Skipped: {dept} ({fname})")
@@ -79,28 +77,24 @@ def analyze_files(files_data):
 
         try:
             if dept == 'Master Plan':
-                # Chargement direct sheet "Plan" uniquement
                 df = read_sheet_direct(f['content'], fname, 'Plan')
                 if df is not None:
                     sheets = {'Plan': df}
                 print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
             elif dept == 'Merchandise':
-                # Chargement direct sheet "Fabric Tracking" uniquement
                 df = read_sheet_direct(f['content'], fname, 'Fabric Tracking')
                 if df is not None:
                     sheets = {'Fabric Tracking': df}
                 print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
             elif dept == 'Daily Report':
-                # Chargement direct sheet "Daily Report" uniquement
                 df = read_sheet_direct(f['content'], fname, 'Daily Report')
                 if df is not None:
                     sheets = {'Daily Report': df}
                 print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
             else:
-                # Autres fichiers (ERP, Fabric, Delivery) — max 10 sheets via ExcelFile
                 xl = read_excel_safe(f['content'], fname)
                 if xl:
                     ext = fname.lower().split('.')[-1]
@@ -126,9 +120,7 @@ def analyze_files(files_data):
     anomalies = []
     stats = {'total': 0, 'critical': 0, 'risk': 0, 'watch': 0, 'ok': 0}
 
-    # =============================================
     # 1. MASTER PLAN
-    # =============================================
     master_orders = []
     master = dfs.get('Master Plan')
     if master:
@@ -175,9 +167,7 @@ def analyze_files(files_data):
             break
     print(f"Master Plan orders (June+): {len(master_orders)}")
 
-    # =============================================
     # 2. ERP
-    # =============================================
     erp_data = {}
     erp = dfs.get('ERP')
     if erp:
@@ -206,9 +196,7 @@ def analyze_files(files_data):
             break
     print(f"ERP: {len(erp_data)} codes")
 
-# =============================================
     # 3. DELIVERY PLAN
-    # =============================================
     delivery_data = {}
     delivery = dfs.get('Delivery & QA')
     if delivery:
@@ -237,12 +225,10 @@ def analyze_files(files_data):
                         except:
                             continue
                     break
-            print(f"  Sheet '{sname}': {len(delivery_data)} codes cumulés")
+            print(f"  Sheet '{sname}': {len(delivery_data)} codes cumules")
     print(f"Delivery: {len(delivery_data)} codes")
 
-    # =============================================
-    # 4. FABRIC CHECKEDIN (QA inspection)
-    # =============================================
+    # 4. FABRIC CHECKEDIN
     fabric_checkedin = {}
     fabric = dfs.get('Fabric')
     if fabric:
@@ -259,7 +245,7 @@ def analyze_files(files_data):
                                 if not code or code == 'NAN':
                                     continue
                                 date_val = xl_to_date(row.get('DATE'))
-                                qty = row.get("Q'TY (MÉT)", 0)
+                                qty = row.get("Q'TY (MET)", 0)
                                 if code not in fabric_checkedin:
                                     fabric_checkedin[code] = {'date': date_val, 'qty': qty}
                                 else:
@@ -272,9 +258,7 @@ def analyze_files(files_data):
                         break
     print(f"Fabric CheckedIn: {len(fabric_checkedin)} codes")
 
-    # =============================================
-    # 5. DAILY REPORT (WH received)
-    # =============================================
+    # 5. DAILY REPORT (WH)
     wh_data = {}
     daily = dfs.get('Daily Report')
     if daily:
@@ -282,20 +266,20 @@ def analyze_files(files_data):
             if 'daily' in sname.lower():
                 for i in range(min(5, len(df))):
                     vals = [str(v).lower() for v in df.iloc[i].values]
-                    if any('mãvậttư' in v or 'mavat' in v for v in vals):
+                    if any('mavat' in v for v in vals):
                         data = df.iloc[i+1:].reset_index(drop=True)
                         data.columns = [str(c).strip() for c in df.iloc[i].values]
                         for _, row in data.iterrows():
                             try:
                                 code = None
                                 for col in data.columns:
-                                    if 'mãvậttư' in str(col).lower() or 'mavat' in str(col).lower():
+                                    if 'mavat' in str(col).lower():
                                         code = str(row.get(col, '')).strip().upper()
                                         break
                                 if not code or code == 'NAN':
                                     continue
-                                date_val = xl_to_date(row.get('Ngày'))
-                                qty = row.get('Total Gross \nQuantity\n(số lượng nhập kho)', 0)
+                                date_val = xl_to_date(row.get('Ngay'))
+                                qty = row.get('Total Gross \nQuantity\n(so luong nhap kho)', 0)
                                 if code not in wh_data:
                                     wh_data[code] = {'date': date_val, 'qty': qty}
                                 else:
@@ -308,9 +292,7 @@ def analyze_files(files_data):
                         break
     print(f"WH received: {len(wh_data)} codes")
 
-    # =============================================
-    # 6. MERCHANDISE (MER release)
-    # =============================================
+    # 6. MERCHANDISE
     merch_status = {}
     merch = dfs.get('Merchandise')
     if merch:
@@ -341,10 +323,9 @@ def analyze_files(files_data):
                         break
     print(f"Merchandise: {len(merch_status)} entries")
 
-    # =============================================
-    # 7. CROSS-CHECK — 5-step flow
-    # =============================================
+    # 7. CROSS-CHECK
     PRIORITY_CUSTOMERS = {'ALD', 'GOLF WANG', 'RODD & GUNN', 'CORTEIZ', 'STUSSY', 'RAPHA'}
+    SKIP = ['Done', 'In Progress', 'In Checking Process']
 
     for order in master_orders:
         days = order['days_to_ship']
@@ -361,7 +342,6 @@ def analyze_files(files_data):
         root_causes = []
         blocking_dept = None
         merch_d = merch_status.get(ck, {})
-
         erp_info = {}
         delivery_info = {}
         qa_info = {}
@@ -384,27 +364,27 @@ def analyze_files(files_data):
             if erp_st == 'Over-due':
                 ref_date = revised_date or confirm_date
                 days_od = (TODAY - ref_date).days if ref_date else '?'
-                issues.append(f'Nhà cung cấp TRỄ {days_od} ngày (ERP Over-due) — mã: {code}')
+                issues.append(f'Nha cung cap TRE {days_od} ngay (ERP Over-due) - ma: {code}')
                 root_causes.append('erp_overdue')
                 blocking_dept = 'Purchasing'
                 break
             if erp_st == 'On-due in next 10 days':
-                issues.append(f'Vải sắp đến hạn trong 10 ngày — mã: {code}')
+                issues.append(f'Vai sap den han trong 10 ngay - ma: {code}')
                 root_causes.append('erp_ondue')
                 blocking_dept = 'Purchasing'
                 break
-            if not delivery_info and erp_st not in ['Done', 'In Progress', 'In Checking Process']:
-                issues.append(f'Chưa có trong Delivery Plan — mã: {code}')
+            if not delivery_info and erp_st not in SKIP:
+                issues.append(f'Chua co trong Delivery Plan - ma: {code}')
                 root_causes.append('not_in_delivery')
                 blocking_dept = 'Purchasing'
                 break
-            if not qa_info and erp_st not in ['Done', 'In Progress', 'In Checking Process'] and erp_st != '':
-                issues.append(f'Chưa được kiểm tra QA — mã: {code}')
+            if not qa_info and erp_st not in SKIP and erp_st != '':
+                issues.append(f'Chua duoc kiem tra QA - ma: {code}')
                 root_causes.append('not_inspected')
                 blocking_dept = 'QA'
                 break
-            if not wh_info and erp_st not in ['Done', 'In Progress', 'In Checking Process'] and erp_st != '':
-                issues.append(f'Chưa nhận vào kho — mã: {code}')
+            if not wh_info and erp_st not in SKIP and erp_st != '':
+                issues.append(f'Chua nhan vao kho - ma: {code}')
                 root_causes.append('not_in_wh')
                 blocking_dept = 'Warehouse'
                 break
@@ -412,30 +392,28 @@ def analyze_files(files_data):
         if not issues:
             erp_st_final = erp_info.get('status', '')
             if not merch_d.get('mer_released', False) and bool(merch_d) and erp_st_final == 'Done':
-                issues.append('Vải sẵn sàng nhưng MER chưa release')
+                issues.append('Vai san sang nhung MER chua release')
                 root_causes.append('mer_not_released')
                 blocking_dept = 'Merchandising'
 
         if docket_plan and actual_docket:
             delay = (actual_docket - docket_plan).days
             if delay > 3:
-                issues.append(f'Docket trễ {delay} ngày')
+                issues.append(f'Docket tre {delay} ngay')
                 root_causes.append('production_delay')
                 if not blocking_dept:
                     blocking_dept = 'Production'
 
         if not issues:
             stats['ok'] += 1
-            if stats['ok'] <= 3:
-                print(f"DEBUG OK: {customer} | {style} | fabric={fabric_codes} | erp={erp_info.get('status','')}")
             continue
 
         if days < 0:
             level = 'CRITICAL'
-            prefix = f'⚠️ Trễ {abs(days)} ngày — '
+            prefix = f'Tre {abs(days)} ngay - '
         elif days <= 7:
             level = 'CRITICAL'
-            prefix = f'🔴 Còn {days} ngày — '
+            prefix = f'Con {days} ngay - '
         elif days <= 14:
             level = 'CRITICAL'
             prefix = ''
@@ -508,10 +486,10 @@ def analyze_files(files_data):
         dept_status.append({
             'name': dept,
             'status': 'CRITICAL' if critical_count > 0 else 'WARNING',
-            'summary': f"{len(dept_alerts)} vấn đề, {critical_count} khẩn cấp"
+            'summary': f"{len(dept_alerts)} van de, {critical_count} khan cap"
         })
 
-   print(f"VERSION2 — Done: {len(anomalies)} | CRITICAL: {stats.get('critical',0)} | RISK: {stats.get('risk',0)} | WATCH: {stats.get('watch',0)} | OK: {stats['ok']}")
+    print(f"Done: {len(anomalies)} | CRITICAL: {stats.get('critical',0)} | RISK: {stats.get('risk',0)} | WATCH: {stats.get('watch',0)} | OK: {stats['ok']}")
 
     return {
         'summary': {
@@ -530,20 +508,20 @@ def analyze_files(files_data):
 
 def build_action(root_causes, customer, style, days, dept):
     if 'erp_overdue' in root_causes:
-        return f'Liên hệ ngay Purchasing — nhà cung cấp trễ giao vải cho {customer}/{style}'
+        return f'Lien he ngay Purchasing - nha cung cap tre giao vai cho {customer}/{style}'
     if 'erp_ondue' in root_causes:
-        return f'Theo dõi sát Purchasing — vải {customer}/{style} sắp đến hạn'
+        return f'Theo doi sat Purchasing - vai {customer}/{style} sap den han'
     if 'not_in_delivery' in root_causes:
-        return f'Yêu cầu Purchasing thêm vải {customer}/{style} vào Delivery Plan'
+        return f'Yeu cau Purchasing them vai {customer}/{style} vao Delivery Plan'
     if 'not_inspected' in root_causes:
-        return f'Yêu cầu QA kiểm tra vải {customer}/{style} ngay'
+        return f'Yeu cau QA kiem tra vai {customer}/{style} ngay'
     if 'not_in_wh' in root_causes:
-        return f'Kiểm tra Warehouse — vải {customer}/{style} chưa nhận vào kho'
+        return f'Kiem tra Warehouse - vai {customer}/{style} chua nhan vao kho'
     if 'mer_not_released' in root_causes:
-        return f'Yêu cầu Merchandising release MER ngay cho {customer}/{style}'
+        return f'Yeu cau Merchandising release MER ngay cho {customer}/{style}'
     if 'production_delay' in root_causes:
-        return f'Theo dõi tiến độ sản xuất cho {customer}/{style}'
-    return f'Theo dõi {customer}/{style}'
+        return f'Theo doi tien do san xuat cho {customer}/{style}'
+    return f'Theo doi {customer}/{style}'
 
 def build_recommendations(anomalies):
     recs = []
@@ -555,19 +533,19 @@ def build_recommendations(anomalies):
     mer = [a for a in anomalies if 'mer_not_released' in a.get('rootCauses', [])]
 
     if overdue:
-        recs.append(f"Xử lý khẩn cấp {len(overdue)} đơn hàng đã TRỄ ngày xuất")
+        recs.append(f"Xu ly khan cap {len(overdue)} don hang da TRE ngay xuat")
     if erp_od:
-        recs.append(f"Purchasing: {len(erp_od)} nhà cung cấp trễ — cần escalate ngay")
+        recs.append(f"Purchasing: {len(erp_od)} nha cung cap tre - can escalate ngay")
     if not_del:
-        recs.append(f"Purchasing: thêm {len(not_del)} mã vải vào Delivery Plan")
+        recs.append(f"Purchasing: them {len(not_del)} ma vai vao Delivery Plan")
     if not_insp:
-        recs.append(f"QA: kiểm tra {len(not_insp)} lô vải đang chờ inspection")
+        recs.append(f"QA: kiem tra {len(not_insp)} lo vai dang cho inspection")
     if not_wh:
-        recs.append(f"Warehouse: xác nhận {len(not_wh)} lô vải chưa nhận")
+        recs.append(f"Warehouse: xac nhan {len(not_wh)} lo vai chua nhan")
     if mer:
-        recs.append(f"Merchandising: release MER cho {len(mer)} đơn hàng")
+        recs.append(f"Merchandising: release MER cho {len(mer)} don hang")
 
-    return recs[:5] if recs else ["Tất cả đơn hàng tháng 6+ đang trong tầm kiểm soát"]
+    return recs[:5] if recs else ["Tat ca don hang thang 6+ dang trong tam kiem soat"]
 
 def build_global_summary(anomalies, stats, dep_count, today):
     critical = len([a for a in anomalies if a['level'] == 'CRITICAL'])
@@ -575,13 +553,13 @@ def build_global_summary(anomalies, stats, dep_count, today):
     overdue = len([a for a in anomalies if a.get('daysToShip', 0) < 0])
     date_str = today.strftime('%d/%m/%Y')
     if not anomalies:
-        return f"Ngày {date_str}: Phân tích {dep_count} báo cáo. Tất cả đơn hàng tháng 6+ đang trong tầm kiểm soát."
-    summary = f"Ngày {date_str}: Phân tích {dep_count} báo cáo, tập trung đơn hàng tháng 6+. "
+        return f"Ngay {date_str}: Phan tich {dep_count} bao cao. Tat ca don hang thang 6+ dang trong tam kiem soat."
+    summary = f"Ngay {date_str}: Phan tich {dep_count} bao cao, tap trung don hang thang 6+. "
     if overdue > 0:
-        summary += f"{overdue} đơn hàng đã TRỄ. "
+        summary += f"{overdue} don hang da TRE. "
     if critical > 0:
-        summary += f"{critical} đơn hàng KHẨN CẤP. "
+        summary += f"{critical} don hang KHAN CAP. "
     if risk > 0:
-        summary += f"{risk} đơn hàng RỦI RO. "
-    summary += "Xem chi tiết bên dưới."
+        summary += f"{risk} don hang RUI RO. "
+    summary += "Xem chi tiet ben duoi."
     return summary
