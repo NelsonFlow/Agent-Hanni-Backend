@@ -207,6 +207,8 @@ def analyze_files(files_data):
     delivery = dfs.get('Delivery & QA')
     if delivery:
         for sname, df in delivery['sheets'].items():
+            if sname.lower() == 'summary':
+                continue
             for i in range(min(8, len(df))):
                 vals = [str(v).lower() for v in df.iloc[i].values]
                 if any('fast code' in v for v in vals) :
@@ -309,7 +311,7 @@ def analyze_files(files_data):
             if 'tracking' in sname.lower():
                 for i in range(min(3, len(df))):
                     vals = [str(v).lower() for v in df.iloc[i].values]
-                    if any('fast code' in v for v in vals):
+                    if any('customer' in v for v in vals):
                         data = df.iloc[i+1:].reset_index(drop=True)
                         data.columns = [str(c).strip() for c in df.iloc[i].values]
                         data = data.dropna(subset=['Customer']).reset_index(drop=True)
@@ -330,7 +332,6 @@ def analyze_files(files_data):
                             except:
                                 continue
                         break
-            break
     print(f"Merchandise: {len(merch_status)} entries")
 
     # =============================================
