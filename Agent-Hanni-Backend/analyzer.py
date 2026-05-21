@@ -200,7 +200,7 @@ def analyze_files(files_data):
             break
     print(f"ERP: {len(erp_data)} codes")
 
-    # =============================================
+   # =============================================
     # 3. DELIVERY PLAN
     # =============================================
     delivery_data = {}
@@ -211,7 +211,7 @@ def analyze_files(files_data):
                 continue
             for i in range(min(8, len(df))):
                 vals = [str(v).lower() for v in df.iloc[i].values]
-                if any('fast code' in v for v in vals) :
+                if any('fast code' in v for v in vals):
                     data = df.iloc[i+1:].reset_index(drop=True)
                     data.columns = [str(c).strip() for c in df.iloc[i].values]
                     for _, row in data.iterrows():
@@ -230,7 +230,7 @@ def analyze_files(files_data):
                                     pass
                         except:
                             continue
-                   break  # sort du for i, continue sur le prochain sname
+                    break
             print(f"  Sheet '{sname}': {len(delivery_data)} codes cumulés")
     print(f"Delivery: {len(delivery_data)} codes")
 
