@@ -28,6 +28,33 @@ def detect_department(filename):
     if 'daily' in f: return 'Daily Report'
     return 'Autre'
 
+def read_sheet_direct(file_bytes, filename, sheet_name):
+    """Charge un sheet directement par nom sans passer par ExcelFile"""
+    ext = filename.lower().split('.')[-1]
+    try:
+        if ext == 'xlsb':
+            return pd.read_excel(io.BytesIO(file_bytes), sheet_name=sheet_name, header=None, engine='pyxlsb')
+        elif ext == 'xls':
+            return pd.read_excel(io.BytesIO(file_bytes), sheet_name=sheet_name, header=None, engine='xlrd')
+        else:
+            return pd.read_excel(io.BytesIO(file_bytes), sheet_name=sheet_name, header=None)
+    except Exception as e:
+        print(f"Error reading sheet '{sheet_name}' from {filename}: {e}")
+        return None
+
+def read_excel_safe(file_bytes, filename):
+    ext = filename.lower().split('.')[-1]
+    try:
+        if ext == 'xlsb':
+            return pd.ExcelFile(io.BytesIO(file_bytes), engine='pyxlsb')
+        elif ext == 'xls':
+            return pd.ExcelFile(io.BytesIO(file_bytes), engine='xlrd')
+        else:
+            return pd.ExcelFile(io.BytesIO(file_bytes))
+    except Exception as e:
+        print(f"Error reading {filename}: {e}")
+        return None
+
 def analyze_files(files_data):
     TODAY = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     JUNE_2026 = datetime(2026, 6, 1)
@@ -46,57 +73,42 @@ def analyze_files(files_data):
 
         try:
             if dept == 'Master Plan':
-                # Chargement direct du sheet Plan uniquement — pas de ExcelFile
-                engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
-                if engine:
-                    df = pd.read_excel(io.BytesIO(f['content']), sheet_name='Plan', header=None, engine=engine)
-                else:
-                    df = pd.read_excel(io.BytesIO(f['content']), sheet_name='Plan', header=None)
-                sheets = {'Plan': df}
-                print(f"Loaded: {dept} ({fname}) — 1 sheet")
+                # Chargement direct sheet "Plan" uniquement
+                df = read_sheet_direct(f['content'], fname, 'Plan')
+                if df is not None:
+                    sheets = {'Plan': df}
+                print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
             elif dept == 'Merchandise':
-                # Chargement ciblé Fabric Tracking uniquement
-                engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
-                if engine:
-                    xl = pd.ExcelFile(io.BytesIO(f['content']), engine=engine)
-                else:
-                    xl = pd.ExcelFile(io.BytesIO(f['content']))
-                target = [s for s in xl.sheet_names if any(x in s.lower() for x in ['tracking', 'daily_report', 'daily report'])]
-                for sname in target:
-                    try:
-                        if engine:
-                            df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
-                        else:
-                            df = pd.read_excel(xl, sheet_name=sname, header=None)
-                        sheets[sname] = df
-                    except:
-                        pass
-                xl.close()
+                # Chargement direct sheet "Fabric Tracking" uniquement
+                df = read_sheet_direct(f['content'], fname, 'Fabric Tracking')
+                if df is not None:
+                    sheets = {'Fabric Tracking': df}
+                print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
+
+            elif dept == 'Daily Report':
+                # Chargement direct sheet "Daily Report" uniquement
+                df = read_sheet_direct(f['content'], fname, 'Daily Report')
+                if df is not None:
+                    sheets = {'Daily Report': df}
                 print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
             else:
-                # Autres fichiers — max 10 sheets
-                ext = fname.lower().split('.')[-1]
-                if ext == 'xlsb':
-                    xl = pd.ExcelFile(io.BytesIO(f['content']), engine='pyxlsb')
-                    engine = 'pyxlsb'
-                elif ext == 'xls':
-                    xl = pd.ExcelFile(io.BytesIO(f['content']), engine='xlrd')
-                    engine = None
-                else:
-                    xl = pd.ExcelFile(io.BytesIO(f['content']))
-                    engine = None
-                for sname in xl.sheet_names[:10]:
-                    try:
-                        if engine:
-                            df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
-                        else:
-                            df = pd.read_excel(xl, sheet_name=sname, header=None)
-                        sheets[sname] = df
-                    except:
-                        pass
-                xl.close()
+                # Autres fichiers (ERP, Fabric, Delivery) — max 10 sheets via ExcelFile
+                xl = read_excel_safe(f['content'], fname)
+                if xl:
+                    ext = fname.lower().split('.')[-1]
+                    engine = 'pyxlsb' if ext == 'xlsb' else None
+                    for sname in xl.sheet_names[:10]:
+                        try:
+                            if engine:
+                                df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
+                            else:
+                                df = pd.read_excel(xl, sheet_name=sname, header=None)
+                            sheets[sname] = df
+                        except:
+                            pass
+                    xl.close()
                 print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
         except Exception as e:
@@ -346,23 +358,18 @@ def analyze_files(files_data):
 
         for code in fabric_codes:
             e = erp_data.get(code, {})
-            if e:
-                erp_info = e
+            if e: erp_info = e
             d = delivery_data.get(code, {})
-            if d:
-                delivery_info = d
+            if d: delivery_info = d
             q = fabric_checkedin.get(code, {})
-            if q:
-                qa_info = q
+            if q: qa_info = q
             w = wh_data.get(code, {})
-            if w:
-                wh_info = w
+            if w: wh_info = w
 
             erp_st = erp_info.get('status', '')
             revised_date = erp_info.get('revised_date')
             confirm_date = erp_info.get('confirm_date')
 
-            # STEP 1 — ERP
             if erp_st == 'Over-due':
                 ref_date = revised_date or confirm_date
                 days_od = (TODAY - ref_date).days if ref_date else '?'
@@ -375,36 +382,28 @@ def analyze_files(files_data):
                 root_causes.append('erp_ondue')
                 blocking_dept = 'Purchasing'
                 break
-
-            # STEP 2 — Delivery Plan
             if not delivery_info and erp_st not in ['Done']:
                 issues.append(f'Chưa có trong Delivery Plan — mã: {code}')
                 root_causes.append('not_in_delivery')
                 blocking_dept = 'Purchasing'
                 break
-
-            # STEP 3 — QA Inspection
             if not qa_info and erp_st not in ['Done']:
                 issues.append(f'Chưa được kiểm tra QA — mã: {code}')
                 root_causes.append('not_inspected')
                 blocking_dept = 'QA'
                 break
-
-            # STEP 4 — WH received
             if not wh_info and erp_st not in ['Done']:
                 issues.append(f'Chưa nhận vào kho — mã: {code}')
                 root_causes.append('not_in_wh')
                 blocking_dept = 'Warehouse'
                 break
 
-        # STEP 5 — MER
         if not issues:
             if not merch_d.get('mer_released', False) and bool(merch_d):
                 issues.append('Vải sẵn sàng nhưng MER chưa release')
                 root_causes.append('mer_not_released')
                 blocking_dept = 'Merchandising'
 
-        # Docket delay
         if docket_plan and actual_docket:
             delay = (actual_docket - docket_plan).days
             if delay > 3:
@@ -417,7 +416,6 @@ def analyze_files(files_data):
             stats['ok'] += 1
             continue
 
-        # Classify
         if days < 0:
             level = 'CRITICAL'
             prefix = f'⚠️ Trễ {abs(days)} ngày — '
