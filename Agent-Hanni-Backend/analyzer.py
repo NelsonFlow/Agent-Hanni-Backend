@@ -201,32 +201,35 @@ def analyze_files(files_data):
     print(f"ERP: {len(erp_data)} codes")
 
     # =============================================
+    # 3. DELIVERY PLAN
+    # =============================================
     delivery_data = {}
-delivery = dfs.get('Delivery & QA')
-if delivery:
-    for sname, df in delivery['sheets'].items():
-        for i in range(min(8, len(df))):
-            vals = [str(v).lower() for v in df.iloc[i].values]
-            if any('fast code' in v for v in vals) and any('customer' in v for v in vals):
-                data = df.iloc[i+1:].reset_index(drop=True)
-                data.columns = [str(c).strip() for c in df.iloc[i].values]
-                for _, row in data.iterrows():
-                    try:
-                        code = str(row.get('fast code', '')).strip().upper()
-                        if not code or code == 'NAN':
+    delivery = dfs.get('Delivery & QA')
+    if delivery:
+        for sname, df in delivery['sheets'].items():
+            for i in range(min(8, len(df))):
+                vals = [str(v).lower() for v in df.iloc[i].values]
+                if any('fast code' in v for v in vals) and any('customer' in v for v in vals):
+                    data = df.iloc[i+1:].reset_index(drop=True)
+                    data.columns = [str(c).strip() for c in df.iloc[i].values]
+                    for _, row in data.iterrows():
+                        try:
+                            code = str(row.get('fast code', '')).strip().upper()
+                            if not code or code == 'NAN':
+                                continue
+                            ready = xl_to_date(row.get('READY TO SHIP DATE')) or (pd.Timestamp(row.get('READY TO SHIP DATE')).to_pydatetime() if pd.notna(row.get('READY TO SHIP DATE')) else None)
+                            qty = row.get("DELIVER Q'TY", 0)
+                            if code not in delivery_data:
+                                delivery_data[code] = {'ready_date': ready, 'qty': qty}
+                            else:
+                                try:
+                                    delivery_data[code]['qty'] = float(delivery_data[code]['qty'] or 0) + float(qty or 0)
+                                except:
+                                    pass
+                        except:
                             continue
-                        ready = xl_to_date(row.get('READY TO SHIP DATE')) or (pd.Timestamp(row.get('READY TO SHIP DATE')).to_pydatetime() if pd.notna(row.get('READY TO SHIP DATE')) else None)
-                        qty = row.get("DELIVER Q'TY", 0)
-                        if code not in delivery_data:
-                            delivery_data[code] = {'ready_date': ready, 'qty': qty}
-                        else:
-                            try:
-                                delivery_data[code]['qty'] = float(delivery_data[code]['qty'] or 0) + float(qty or 0)
-                            except:
-                                pass
-                    except:
-                        continue
-                break  # break sur les rows, pas sur les sheets
+                    break
+    print(f"Delivery: {len(delivery_data)} codes")
 
     # =============================================
     # 4. FABRIC CHECKEDIN (QA inspection)
