@@ -490,9 +490,9 @@ def analyze_files(files_data):
         del_qty = float(delivery_info.get('qty', 0) or 0)
         master_qty = float(order.get('qty_pcs', 0) or 0)
 
-        pct_delivery = round(del_qty / erp_qty * 100) if erp_qty > 0 else 0
-        pct_qa = round(qa_qty / erp_qty * 100) if erp_qty > 0 else 0
-        pct_wh = round(wh_qty / erp_qty * 100) if erp_qty > 0 else 0
+        pct_delivery = round(del_qty / erp_qty * 100) if erp_qty > 0 and del_qty == del_qty else 0
+        pct_qa = round(qa_qty / erp_qty * 100) if erp_qty > 0 and qa_qty == qa_qty else 0
+        pct_wh = round(wh_qty / erp_qty * 100) if erp_qty > 0 and wh_qty == wh_qty else 0
 
         try:
             anomalies.append({
