@@ -28,19 +28,6 @@ def detect_department(filename):
     if 'daily' in f: return 'Daily Report'
     return 'Autre'
 
-def read_excel_safe(file_bytes, filename):
-    ext = filename.lower().split('.')[-1]
-    try:
-        if ext == 'xlsb':
-            return pd.ExcelFile(io.BytesIO(file_bytes), engine='pyxlsb')
-        elif ext == 'xls':
-            return pd.ExcelFile(io.BytesIO(file_bytes), engine='xlrd')
-        else:
-            return pd.ExcelFile(io.BytesIO(file_bytes))
-    except Exception as e:
-        print(f"Error reading {filename}: {e}")
-        return None
-
 def analyze_files(files_data):
     TODAY = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     JUNE_2026 = datetime(2026, 6, 1)
@@ -49,67 +36,74 @@ def analyze_files(files_data):
     for f in files_data:
         fname = f['filename']
         dept = detect_department(fname)
-        xl = read_excel_safe(f['content'], fname)
-        if xl is None:
-            continue
         sheets = {}
-        engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
 
-        # Pour Master Plan — charger uniquement le sheet Plan
-        if dept == 'Master Plan':
-            target_sheets = [s for s in xl.sheet_names if s.lower() == 'plan']
-        # Pour Merchandise — charger uniquement Fabric Tracking et Daily_Report
-        elif dept == 'Merchandise':
-            target_sheets = [s for s in xl.sheet_names if any(x in s.lower() for x in ['tracking', 'daily_report', 'daily report'])]
-        else:
-            target_sheets = xl.sheet_names[:10]
+        # Shipment — skippé
+        if dept == 'Shipment':
+            dfs[dept] = {'filename': fname, 'sheets': {}}
+            print(f"Skipped: {dept} ({fname})")
+            continue
 
-        # Chargement optimisé par département
-        if dept == 'Master Plan':
-            try:
+        try:
+            if dept == 'Master Plan':
+                # Chargement direct du sheet Plan uniquement — pas de ExcelFile
                 engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
                 if engine:
                     df = pd.read_excel(io.BytesIO(f['content']), sheet_name='Plan', header=None, engine=engine)
                 else:
                     df = pd.read_excel(io.BytesIO(f['content']), sheet_name='Plan', header=None)
                 sheets = {'Plan': df}
-            except Exception as e:
-                print(f"Master Plan error: {e}")
-                sheets = {}
-        elif dept == 'Merchandise':
-            xl = read_excel_safe(f['content'], fname)
-            if xl:
+                print(f"Loaded: {dept} ({fname}) — 1 sheet")
+
+            elif dept == 'Merchandise':
+                # Chargement ciblé Fabric Tracking uniquement
                 engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
-                for sname in xl.sheet_names:
-                    if any(x in sname.lower() for x in ['tracking', 'daily_report', 'daily report']):
-                        try:
-                            if engine:
-                                df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
-                            else:
-                                df = pd.read_excel(xl, sheet_name=sname, header=None)
-                            sheets[sname] = df
-                        except:
-                            pass
-        else:
-            xl = read_excel_safe(f['content'], fname)
-            if xl:
-                engine = 'pyxlsb' if fname.lower().endswith('.xlsb') else None
-                if dept == 'Shipment':
-                    dfs[dept] = {'filename': fname, 'sheets': {}}
-                    print(f"Skipped: {dept} ({fname})")
-                    continue
-                for sheet in xl.sheet_names[:10]:
+                if engine:
+                    xl = pd.ExcelFile(io.BytesIO(f['content']), engine=engine)
+                else:
+                    xl = pd.ExcelFile(io.BytesIO(f['content']))
+                target = [s for s in xl.sheet_names if any(x in s.lower() for x in ['tracking', 'daily_report', 'daily report'])]
+                for sname in target:
                     try:
                         if engine:
-                            df = pd.read_excel(xl, sheet_name=sheet, header=None, engine=engine)
+                            df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
                         else:
-                            df = pd.read_excel(xl, sheet_name=sheet, header=None)
-                        sheets[sheet] = df
+                            df = pd.read_excel(xl, sheet_name=sname, header=None)
+                        sheets[sname] = df
                     except:
                         pass
+                xl.close()
+                print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
+
+            else:
+                # Autres fichiers — max 10 sheets
+                ext = fname.lower().split('.')[-1]
+                if ext == 'xlsb':
+                    xl = pd.ExcelFile(io.BytesIO(f['content']), engine='pyxlsb')
+                    engine = 'pyxlsb'
+                elif ext == 'xls':
+                    xl = pd.ExcelFile(io.BytesIO(f['content']), engine='xlrd')
+                    engine = None
+                else:
+                    xl = pd.ExcelFile(io.BytesIO(f['content']))
+                    engine = None
+                for sname in xl.sheet_names[:10]:
+                    try:
+                        if engine:
+                            df = pd.read_excel(xl, sheet_name=sname, header=None, engine=engine)
+                        else:
+                            df = pd.read_excel(xl, sheet_name=sname, header=None)
+                        sheets[sname] = df
+                    except:
+                        pass
+                xl.close()
+                print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
+
+        except Exception as e:
+            print(f"Error loading {dept} ({fname}): {e}")
+            sheets = {}
 
         dfs[dept] = {'filename': fname, 'sheets': sheets}
-        print(f"Loaded: {dept} ({fname}) — {len(sheets)} sheets")
 
     anomalies = []
     stats = {'total': 0, 'critical': 0, 'risk': 0, 'watch': 0, 'ok': 0}
@@ -345,7 +339,6 @@ def analyze_files(files_data):
         blocking_dept = None
         merch_d = merch_status.get(ck, {})
 
-        # Collect data from each step
         erp_info = {}
         delivery_info = {}
         qa_info = {}
@@ -443,7 +436,6 @@ def analyze_files(files_data):
 
         stats[level.lower()] += 1
 
-        # Build percent calculations
         erp_qty = float(erp_info.get('actual_qty', 0) or 0)
         qa_qty = float(qa_info.get('qty', 0) or 0)
         wh_qty = float(wh_info.get('qty', 0) or 0)
@@ -469,31 +461,25 @@ def analyze_files(files_data):
             'action': build_action(root_causes, customer, style, days, blocking_dept),
             'rootCauses': root_causes,
             'fabricCodes': fabric_codes,
-            # ERP data
             'erp_actual_qty': int(erp_qty) if erp_qty else 0,
             'erp_confirm_date': fmt_date(erp_info.get('confirm_date')),
             'erp_revised_date': fmt_date(erp_info.get('revised_date')),
             'erp_status': erp_info.get('status', ''),
             'erp_pct_arrived': pct_delivery,
-            # Delivery data
             'delivery_ready_date': fmt_date(delivery_info.get('ready_date')),
             'delivery_qty': int(del_qty) if del_qty else 0,
             'delivery_pct': pct_delivery,
-            # QA data
             'qa_date': fmt_date(qa_info.get('date')),
             'qa_qty': round(qa_qty, 1) if qa_qty else 0,
             'qa_pct': pct_qa,
-            # WH data
             'wh_date': fmt_date(wh_info.get('date')),
             'wh_qty': round(wh_qty, 1) if wh_qty else 0,
             'wh_pct': pct_wh,
-            # Merch data
             'merch_release_date': fmt_date(merch_d.get('release_date')),
             'merch_qty': int(float(merch_d.get('qty', 0) or 0)),
             'merch_status': 'DONE' if merch_d.get('mer_released') else ('PENDING' if ck in merch_status else 'N/A'),
         })
 
-    # Sort — priority customers first
     level_order = {'CRITICAL': 0, 'RISK': 1, 'WATCH': 2, 'OK': 3}
     anomalies.sort(key=lambda x: (
         0 if x['customer'].upper() in PRIORITY_CUSTOMERS else 1,
