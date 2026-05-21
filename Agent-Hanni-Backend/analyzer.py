@@ -452,7 +452,7 @@ def analyze_files(files_data):
                     'season': order.get('season', ''),
                     'drop': order.get('drop', ''),
                     'shipDate': order['ship_date_str'],
-                    'daysToShip': int(days),
+                    'daysToShip': int(days) if days == days else 0,
                     'qtyPcs': int(master_qty) if master_qty and not (isinstance(master_qty, float) and master_qty != master_qty) else 0,
                     'issue': prefix + ' | '.join(issues),
                     'action': build_action(root_causes, customer, style, days, blocking_dept),
