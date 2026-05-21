@@ -266,14 +266,14 @@ def analyze_files(files_data):
             if 'daily' in sname.lower():
                 for i in range(min(5, len(df))):
                     vals = [str(v).lower() for v in df.iloc[i].values]
-                    if any('mavat' in v for v in vals):
+                    if any('mavat' in v or 'v\u1eadt\u01b0' in v for v in vals):
                         data = df.iloc[i+1:].reset_index(drop=True)
                         data.columns = [str(c).strip() for c in df.iloc[i].values]
                         for _, row in data.iterrows():
                             try:
                                 code = None
                                 for col in data.columns:
-                                    if 'mavat' in str(col).lower():
+                                    if 'mavat' in str(col).lower() or 'v\u1eadt\u01b0' in str(col).lower():
                                         code = str(row.get(col, '')).strip().upper()
                                         break
                                 if not code or code == 'NAN':
@@ -406,6 +406,8 @@ def analyze_files(files_data):
 
         if not issues:
             stats['ok'] += 1
+            if stats['ok'] <= 3:
+                print(f"DEBUG OK: {customer} | fabric={fabric_codes} | erp='{erp_info.get('status', '')}'")
             continue
 
         if days < 0:
