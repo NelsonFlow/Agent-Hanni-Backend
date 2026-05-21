@@ -145,7 +145,10 @@ def analyze_files(files_data):
                     drop = str(row.get('Drop', '')).strip()
                     ship_date = xl_to_date(row.get('Ship Date'))
                     qty = row.get('Qty', 0)
-                    fabric_main = str(row.get('Main', '')).strip().upper()
+                   main_val = row.get('Main', '')
+                    if hasattr(main_val, 'iloc'):
+                        main_val = main_val.iloc[0]
+                    fabric_main = str(main_val).strip().upper().split('\n')[0].strip()
                     fabric_codes = [c for c in [fabric_main] if c and c != 'NAN' and c != 'OK' and not c.replace('.', '').isdigit()]
                     if not ship_date or not customer or customer == 'nan':
                         continue
