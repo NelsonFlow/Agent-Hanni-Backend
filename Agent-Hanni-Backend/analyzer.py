@@ -404,7 +404,7 @@ def analyze_files(files_data):
                 break
 
         if not issues:
-            if not merch_d.get('mer_released', False) and bool(merch_d):
+            if not merch_d.get('mer_released', False) and bool(merch_d) and erp_st == 'Done':
                 issues.append('Vải sẵn sàng nhưng MER chưa release')
                 root_causes.append('mer_not_released')
                 blocking_dept = 'Merchandising'
