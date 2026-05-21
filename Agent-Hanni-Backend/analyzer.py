@@ -410,19 +410,23 @@ def analyze_files(files_data):
             if stats['total'] <= 5:
                 print(f"ISSUE {stats['total']}: {customer}|{style} fabric={fabric_codes} erp='{erp_info.get('status','')}' -> {issues}")
 
-            if days < 0:
-                level = 'CRITICAL'
-                prefix = f'Tre {abs(days)} ngay - '
-            elif days <= 7:
-                level = 'CRITICAL'
-                prefix = f'Con {days} ngay - '
-            elif days <= 14:
-                level = 'CRITICAL'
-                prefix = ''
-            elif days <= 28:
-                level = 'RISK'
-                prefix = ''
-            else:
+            try:
+                if days < 0:
+                    level = 'CRITICAL'
+                    prefix = f'Tre {abs(int(days))} ngay - '
+                elif days <= 7:
+                    level = 'CRITICAL'
+                    prefix = f'Con {int(days)} ngay - '
+                elif days <= 14:
+                    level = 'CRITICAL'
+                    prefix = ''
+                elif days <= 28:
+                    level = 'RISK'
+                    prefix = ''
+                else:
+                    level = 'WATCH'
+                    prefix = ''
+            except:
                 level = 'WATCH'
                 prefix = ''
 
@@ -500,7 +504,7 @@ def analyze_files(files_data):
                 'season': order.get('season', ''),
                 'drop': order.get('drop', ''),
                 'shipDate': order['ship_date_str'],
-                'daysToShip': int(days),
+                'daysToShip': int(days) if days == days else 0,
                 'qtyPcs': int(master_qty) if master_qty and not (isinstance(master_qty, float) and master_qty != master_qty) else 0,
                 'issue': prefix + ' | '.join(issues),
                 'action': build_action(root_causes, customer, style, days, blocking_dept),
