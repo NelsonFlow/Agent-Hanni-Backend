@@ -230,8 +230,8 @@ def analyze_files(files_data):
                                     pass
                         except:
                             continue
-                   print(f"  Sheet '{sname}': {len(delivery_data)} codes cumulés")
-                    break  # sort du for i, continue sur le prochain sname
+                   break  # sort du for i, continue sur le prochain sname
+            print(f"  Sheet '{sname}': {len(delivery_data)} codes cumulés")
     print(f"Delivery: {len(delivery_data)} codes")
 
     # =============================================
