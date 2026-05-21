@@ -228,7 +228,7 @@ def analyze_files(files_data):
                                     pass
                         except:
                             continue
-                    break
+                    break  # sort du for i, continue sur le prochain sname
     print(f"Delivery: {len(delivery_data)} codes")
 
     # =============================================
