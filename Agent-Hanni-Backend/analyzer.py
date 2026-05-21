@@ -4,6 +4,12 @@ from datetime import datetime, timedelta
 import io
 
 def xl_to_date(val):
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.replace(hour=0, minute=0, second=0, microsecond=0)
+    if hasattr(val, 'to_pydatetime'):
+        return val.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0)
     try:
         v = float(val)
         if not np.isnan(v) and v > 1000:
