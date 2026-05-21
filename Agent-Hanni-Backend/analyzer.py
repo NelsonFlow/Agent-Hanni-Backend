@@ -398,12 +398,12 @@ def analyze_files(files_data):
                 root_causes.append('not_in_delivery')
                 blocking_dept = 'Purchasing'
                 break
-            if not qa_info and erp_st not in ['Done']:
+            if not qa_info and erp_st not in ['Done', 'In Progress', 'In Checking Process']:
                 issues.append(f'Chưa được kiểm tra QA — mã: {code}')
                 root_causes.append('not_inspected')
                 blocking_dept = 'QA'
                 break
-            if not wh_info and erp_st not in ['Done']:
+            if not wh_info and erp_st not in ['Done', 'In Progress', 'In Checking Process']:
                 issues.append(f'Chưa nhận vào kho — mã: {code}')
                 root_causes.append('not_in_wh')
                 blocking_dept = 'Warehouse'
