@@ -58,6 +58,19 @@ async def analyze(request: AnalyzeRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur analyse: {str(e)}")
 
+    import json, math
+
+    def clean_nan(obj):
+        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+            return 0
+        if isinstance(obj, dict):
+            return {k: clean_nan(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [clean_nan(v) for v in obj]
+        return obj
+
+    result = clean_nan(result)
+
     if OPENAI_KEY and result['alerts']:
         try:
             result = enrich_with_ai(result)
