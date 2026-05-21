@@ -264,7 +264,7 @@ def analyze_files(files_data):
     if daily:
         for sname, df in daily['sheets'].items():
             if 'daily' in sname.lower():
-                for i in range(min(5, len(df))):
+                for i in range(min(8, len(df))):
                     vals = [str(v).lower() for v in df.iloc[i].values]
                     print(f"WH row {i}: {vals[:6]}")
                     if any('m\u00e3v\u1eadt\u01b0' in v for v in vals):
