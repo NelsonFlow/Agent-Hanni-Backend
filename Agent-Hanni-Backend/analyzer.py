@@ -531,6 +531,7 @@ def analyze_files(files_data):
         except Exception as append_err:
             print(f"APPEND ERROR: {append_err} | customer={customer} style={style}")
 
+    level_order = {'CRITICAL': 0, 'RISK': 1, 'WATCH': 2, 'OK': 3}
     try:
         anomalies.sort(key=lambda x: (
             0 if x['customer'].upper() in PRIORITY_CUSTOMERS else 1,
