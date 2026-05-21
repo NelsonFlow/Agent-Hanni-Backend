@@ -262,6 +262,7 @@ def analyze_files(files_data):
     wh_data = {}
     daily = dfs.get('Daily Report')
     if daily:
+        print(f"Daily sheets: {list(daily['sheets'].keys())}")
         for sname, df in daily['sheets'].items():
             if 'daily' in sname.lower():
                 header_row = 3
