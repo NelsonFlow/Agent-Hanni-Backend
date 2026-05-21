@@ -402,7 +402,8 @@ def analyze_files(files_data):
             if stats['ok'] <= 3:
                 print(f"DEBUG OK: {customer} | fabric={fabric_codes} | erp='{erp_info.get('status', '')}'")
             continue
-
+        if stats['total'] <= 5:
+            print(f"ISSUE {stats['total']}: {customer}|{style} fabric={fabric_codes} erp='{erp_info.get('status','')}' -> {issues}")
         if days < 0:
             level = 'CRITICAL'
             prefix = f'Tre {abs(days)} ngay - '
