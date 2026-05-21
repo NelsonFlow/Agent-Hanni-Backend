@@ -267,14 +267,14 @@ def analyze_files(files_data):
                 for i in range(min(8, len(df))):
                     vals = [str(v).lower() for v in df.iloc[i].values]
                     print(f"WH row {i}: {vals[:6]}")
-                    if any('m\u00e3v\u1eadt\u01b0' in v for v in vals):
+                    if any('m\u00e3v' in v for v in vals):
                         data = df.iloc[i+1:].reset_index(drop=True)
                         data.columns = [str(c).strip() for c in df.iloc[i].values]
                         for _, row in data.iterrows():
                             try:
                                 code = None
                                 for col in data.columns:
-                                    if 'm\u00e3v\u1eadt\u01b0' in str(col).lower():
+                                    if 'm\u00e3v' in str(col).lower():
                                         code = str(row.get(col, '')).strip().upper()
                                         break
                                 if not code or code == 'NAN':
