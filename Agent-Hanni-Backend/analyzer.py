@@ -424,7 +424,7 @@ def analyze_files(files_data):
                 if not blocking_dept:
                     blocking_dept = 'Production'
 
-       if not issues:
+        if not issues:
             stats['ok'] += 1
             if stats['ok'] <= 3:
                 print(f"DEBUG OK: {customer} | {style} | fabric={fabric_codes} | erp={erp_info.get('status','')}")
