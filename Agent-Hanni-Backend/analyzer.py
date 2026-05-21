@@ -324,104 +324,159 @@ def analyze_files(files_data):
     SKIP = ['Done', 'In Progress', 'In Checking Process']
 
     for order in master_orders:
-        days = order['days_to_ship']
-        ck = order['ck']
-        customer = order['customer']
-        style = order['style']
-        color = order['color']
-        fabric_codes = order['fabric_codes']
-        docket_plan = order['docket_plan']
-        actual_docket = order['actual_docket']
-        stats['total'] += 1
+        try:
+            days = order['days_to_ship']
+            ck = order['ck']
+            customer = order['customer']
+            style = order['style']
+            color = order['color']
+            fabric_codes = order['fabric_codes']
+            docket_plan = order['docket_plan']
+            actual_docket = order['actual_docket']
+            stats['total'] += 1
 
-        issues = []
-        root_causes = []
-        blocking_dept = None
-        merch_d = merch_status.get(ck, {})
-        erp_info = {}
-        delivery_info = {}
-        qa_info = {}
-        wh_info = {}
+            issues = []
+            root_causes = []
+            blocking_dept = None
+            merch_d = merch_status.get(ck, {})
+            erp_info = {}
+            delivery_info = {}
+            qa_info = {}
+            wh_info = {}
 
-        for code in fabric_codes:
-            e = erp_data.get(code, {})
-            if e: erp_info = e
-            d = delivery_data.get(code, {})
-            if d: delivery_info = d
-            q = fabric_checkedin.get(code, {})
-            if q: qa_info = q
-            w = wh_data.get(code, {})
-            if w: wh_info = w
+            for code in fabric_codes:
+                e = erp_data.get(code, {})
+                if e: erp_info = e
+                d = delivery_data.get(code, {})
+                if d: delivery_info = d
+                q = fabric_checkedin.get(code, {})
+                if q: qa_info = q
+                w = wh_data.get(code, {})
+                if w: wh_info = w
 
-            erp_st = erp_info.get('status', '')
-            revised_date = erp_info.get('revised_date')
-            confirm_date = erp_info.get('confirm_date')
+                erp_st = erp_info.get('status', '')
+                revised_date = erp_info.get('revised_date')
+                confirm_date = erp_info.get('confirm_date')
 
-            if erp_st == 'Over-due':
-                ref_date = revised_date or confirm_date
-                days_od = (TODAY - ref_date).days if ref_date else '?'
-                issues.append(f'Nha cung cap TRE {days_od} ngay (ERP Over-due) - ma: {code}')
-                root_causes.append('erp_overdue')
-                blocking_dept = 'Purchasing'
-                break
-            if erp_st == 'On-due in next 10 days':
-                issues.append(f'Vai sap den han trong 10 ngay - ma: {code}')
-                root_causes.append('erp_ondue')
-                blocking_dept = 'Purchasing'
-                break
-            if not delivery_info and erp_st not in SKIP:
-                issues.append(f'Chua co trong Delivery Plan - ma: {code}')
-                root_causes.append('not_in_delivery')
-                blocking_dept = 'Purchasing'
-                break
-            if not qa_info and erp_st not in SKIP and erp_st != '':
-                issues.append(f'Chua duoc kiem tra QA - ma: {code}')
-                root_causes.append('not_inspected')
-                blocking_dept = 'QA'
-                break
-            if not wh_info and erp_st not in SKIP and erp_st != '':
-                issues.append(f'Chua nhan vao kho - ma: {code}')
-                root_causes.append('not_in_wh')
-                blocking_dept = 'Warehouse'
-                break
+                if erp_st == 'Over-due':
+                    ref_date = revised_date or confirm_date
+                    days_od = (TODAY - ref_date).days if ref_date else '?'
+                    issues.append(f'Nha cung cap TRE {days_od} ngay (ERP Over-due) - ma: {code}')
+                    root_causes.append('erp_overdue')
+                    blocking_dept = 'Purchasing'
+                    break
+                if erp_st == 'On-due in next 10 days':
+                    issues.append(f'Vai sap den han trong 10 ngay - ma: {code}')
+                    root_causes.append('erp_ondue')
+                    blocking_dept = 'Purchasing'
+                    break
+                if not delivery_info and erp_st not in SKIP:
+                    issues.append(f'Chua co trong Delivery Plan - ma: {code}')
+                    root_causes.append('not_in_delivery')
+                    blocking_dept = 'Purchasing'
+                    break
+                if not qa_info and erp_st not in SKIP and erp_st != '':
+                    issues.append(f'Chua duoc kiem tra QA - ma: {code}')
+                    root_causes.append('not_inspected')
+                    blocking_dept = 'QA'
+                    break
+                if not wh_info and erp_st not in SKIP and erp_st != '':
+                    issues.append(f'Chua nhan vao kho - ma: {code}')
+                    root_causes.append('not_in_wh')
+                    blocking_dept = 'Warehouse'
+                    break
 
-        if not issues:
-            erp_st_final = erp_info.get('status', '')
-            if not merch_d.get('mer_released', False) and bool(merch_d) and erp_st_final == 'Done':
-                issues.append('Vai san sang nhung MER chua release')
-                root_causes.append('mer_not_released')
-                blocking_dept = 'Merchandising'
+            if not issues:
+                erp_st_final = erp_info.get('status', '')
+                if not merch_d.get('mer_released', False) and bool(merch_d) and erp_st_final == 'Done':
+                    issues.append('Vai san sang nhung MER chua release')
+                    root_causes.append('mer_not_released')
+                    blocking_dept = 'Merchandising'
 
-        if docket_plan and actual_docket:
-            delay = (actual_docket - docket_plan).days
-            if delay > 3:
-                issues.append(f'Docket tre {delay} ngay')
-                root_causes.append('production_delay')
-                if not blocking_dept:
-                    blocking_dept = 'Production'
+            if docket_plan and actual_docket:
+                delay = (actual_docket - docket_plan).days
+                if delay > 3:
+                    issues.append(f'Docket tre {delay} ngay')
+                    root_causes.append('production_delay')
+                    if not blocking_dept:
+                        blocking_dept = 'Production'
 
-        if not issues:
-            stats['ok'] += 1
-            if stats['ok'] <= 3:
-                print(f"DEBUG OK: {customer} | fabric={fabric_codes} | erp='{erp_info.get('status', '')}'")
-            continue
-        if stats['total'] <= 5:
-            print(f"ISSUE {stats['total']}: {customer}|{style} fabric={fabric_codes} erp='{erp_info.get('status','')}' -> {issues}")
-        if days < 0:
-            level = 'CRITICAL'
-            prefix = f'Tre {abs(days)} ngay - '
-        elif days <= 7:
-            level = 'CRITICAL'
-            prefix = f'Con {days} ngay - '
-        elif days <= 14:
-            level = 'CRITICAL'
-            prefix = ''
-        elif days <= 28:
-            level = 'RISK'
-            prefix = ''
-        else:
-            level = 'WATCH'
-            prefix = ''
+            if not issues:
+                stats['ok'] += 1
+                if stats['ok'] <= 3:
+                    print(f"DEBUG OK: {customer} | fabric={fabric_codes} | erp='{erp_info.get('status', '')}'")
+                continue
+
+            if stats['total'] <= 5:
+                print(f"ISSUE {stats['total']}: {customer}|{style} fabric={fabric_codes} erp='{erp_info.get('status','')}' -> {issues}")
+
+            if days < 0:
+                level = 'CRITICAL'
+                prefix = f'Tre {abs(days)} ngay - '
+            elif days <= 7:
+                level = 'CRITICAL'
+                prefix = f'Con {days} ngay - '
+            elif days <= 14:
+                level = 'CRITICAL'
+                prefix = ''
+            elif days <= 28:
+                level = 'RISK'
+                prefix = ''
+            else:
+                level = 'WATCH'
+                prefix = ''
+
+            stats[level.lower()] += 1
+
+            erp_qty = float(erp_info.get('actual_qty', 0) or 0)
+            qa_qty = float(qa_info.get('qty', 0) or 0)
+            wh_qty = float(wh_info.get('qty', 0) or 0)
+            del_qty = float(delivery_info.get('qty', 0) or 0)
+            master_qty = float(order.get('qty_pcs', 0) or 0)
+
+            pct_delivery = round(del_qty / erp_qty * 100) if erp_qty > 0 else 0
+            pct_qa = round(qa_qty / erp_qty * 100) if erp_qty > 0 else 0
+            pct_wh = round(wh_qty / erp_qty * 100) if erp_qty > 0 else 0
+
+            try:
+                anomalies.append({
+                    'level': level,
+                    'department': blocking_dept or 'Unknown',
+                    'customer': customer,
+                    'style': style,
+                    'color': color,
+                    'season': order.get('season', ''),
+                    'drop': order.get('drop', ''),
+                    'shipDate': order['ship_date_str'],
+                    'daysToShip': int(days),
+                    'qtyPcs': int(master_qty) if master_qty and not (isinstance(master_qty, float) and master_qty != master_qty) else 0,
+                    'issue': prefix + ' | '.join(issues),
+                    'action': build_action(root_causes, customer, style, days, blocking_dept),
+                    'rootCauses': root_causes,
+                    'fabricCodes': fabric_codes,
+                    'erp_actual_qty': int(erp_qty) if erp_qty and not (isinstance(erp_qty, float) and erp_qty != erp_qty) else 0,
+                    'erp_confirm_date': fmt_date(erp_info.get('confirm_date')),
+                    'erp_revised_date': fmt_date(erp_info.get('revised_date')),
+                    'erp_status': erp_info.get('status', ''),
+                    'erp_pct_arrived': pct_delivery,
+                    'delivery_ready_date': fmt_date(delivery_info.get('ready_date')),
+                    'delivery_qty': int(del_qty) if del_qty and not (isinstance(del_qty, float) and del_qty != del_qty) else 0,
+                    'delivery_pct': pct_delivery,
+                    'qa_date': fmt_date(qa_info.get('date')),
+                    'qa_qty': round(qa_qty, 1) if qa_qty else 0,
+                    'qa_pct': pct_qa,
+                    'wh_date': fmt_date(wh_info.get('date')),
+                    'wh_qty': round(wh_qty, 1) if wh_qty else 0,
+                    'wh_pct': pct_wh,
+                    'merch_release_date': fmt_date(merch_d.get('release_date')),
+                    'merch_qty': 0,
+                    'merch_status': 'DONE' if merch_d.get('mer_released') else ('PENDING' if ck in merch_status else 'N/A'),
+                })
+            except Exception as append_err:
+                print(f"APPEND ERROR: {append_err} | customer={customer} style={style}")
+
+        except Exception as order_err:
+            print(f"ORDER ERROR: {order_err} | {order.get('customer','')} {order.get('style','')}")
 
         stats[level.lower()] += 1
 
