@@ -53,6 +53,9 @@ async def analyze(request: AnalyzeRequest):
     try:
         result = analyze_files(files_data)
     except Exception as e:
+        print(f"ANALYZE ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur analyse: {str(e)}")
 
     if OPENAI_KEY and result['alerts']:
